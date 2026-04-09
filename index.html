@@ -11,7 +11,32 @@
   <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
   <header id="toolbar">
     <h1>Seat Chart</h1>
-    <span class="toolbar-placeholder">Toolbar coming soon (Phase 4)</span>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <label class="toolbar-label" for="tables-input">Tables</label>
+      <input type="number" id="tables-input" class="toolbar-number" min="0" max="99">
+    </div>
+
+    <div class="toolbar-group">
+      <label class="toolbar-label" for="min-cap-input">Min</label>
+      <input type="number" id="min-cap-input" class="toolbar-number" min="0" max="99" placeholder="—">
+    </div>
+
+    <div class="toolbar-group">
+      <label class="toolbar-label" for="max-cap-input">Max</label>
+      <input type="number" id="max-cap-input" class="toolbar-number" min="0" max="99" placeholder="—">
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-add">
+      <input type="text" id="add-guest-input" class="toolbar-text" placeholder="First Last">
+      <button id="add-guest-btn" class="toolbar-btn">Add Guest</button>
+    </div>
+
+    <div id="toolbar-status" class="toolbar-status"></div>
   </header>
 
   <!-- ── Main layout ─────────────────────────────────────────────────── -->
