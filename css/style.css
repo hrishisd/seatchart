@@ -260,6 +260,7 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
 .guest-card:hover {
@@ -295,6 +296,7 @@ html, body {
   user-select: none;
   touch-action: none;
   transition: background 0.12s, border-color 0.12s;
+  flex-shrink: 0;
 }
 
 .cluster-card:hover {
