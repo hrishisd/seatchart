@@ -374,6 +374,7 @@ html, body {
 #tables-panel {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto;
   padding: 24px;
   min-width: 0;
 }

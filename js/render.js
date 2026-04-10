@@ -257,6 +257,84 @@ function tableRadius(guestCount) {
   return TABLE_MIN_R + t * (TABLE_MAX_R - TABLE_MIN_R);
 }
 
+// Constants for dynamic cell sizing (must match placeSeatsAroundCircle's labelR = r + 20)
+const LABEL_R_OFFSET = 20;
+const HALF_LABEL_W = 35;  // ~half of a typical name label width (~70px)
+const HALF_LABEL_H = 10;  // ~half of label height (~20px)
+const CELL_H_GAP = 24;    // horizontal padding between adjacent label zones
+const CELL_V_GAP = 32;    // vertical padding between adjacent label zones
+
+/**
+ * Compute the required cell dimensions for a table with the given guest count.
+ * Based on the table radius and the extent of name labels around the perimeter.
+ */
+export function computeCellSize(guestCount) {
+  const r = tableRadius(guestCount);
+  const labelR = r + LABEL_R_OFFSET;
+  return {
+    w: 2 * (labelR + HALF_LABEL_W) + CELL_H_GAP,
+    h: 2 * (labelR + HALF_LABEL_H) + CELL_V_GAP,
+  };
+}
+
+/**
+ * Compute honeycomb grid positions for an array of cells with variable sizes.
+ * Returns an array of { x, y, w, h } — one per input cell — where w/h are the
+ * column/row maximums (so the table circle stays centered within its cell).
+ *
+ * @param {Array<{w: number, h: number}>} cellSizes
+ * @param {number} gridWidth - available width for the grid
+ * @returns {Array<{x: number, y: number, w: number, h: number}>}
+ */
+export function computeHoneycombLayout(cellSizes, gridWidth) {
+  if (cellSizes.length === 0) return [];
+
+  const maxCellW = Math.max(...cellSizes.map((s) => s.w));
+  const cols = Math.max(3, Math.floor(gridWidth / maxCellW));
+  const numRows = Math.ceil(cellSizes.length / cols);
+
+  // Per-column widths: max of all cells in that column
+  const colWidths = new Array(cols).fill(0);
+  for (let i = 0; i < cellSizes.length; i++) {
+    const col = i % cols;
+    colWidths[col] = Math.max(colWidths[col], cellSizes[i].w);
+  }
+
+  // Per-row heights: max of all cells in that row
+  const rowHeights = new Array(numRows).fill(0);
+  for (let i = 0; i < cellSizes.length; i++) {
+    const row = Math.floor(i / cols);
+    rowHeights[row] = Math.max(rowHeights[row], cellSizes[i].h);
+  }
+
+  // Cumulative x-offsets
+  const colX = new Array(cols).fill(0);
+  for (let c = 1; c < cols; c++) {
+    colX[c] = colX[c - 1] + colWidths[c - 1];
+  }
+
+  // Cumulative y-offsets
+  const rowY = new Array(numRows).fill(0);
+  for (let r = 1; r < numRows; r++) {
+    rowY[r] = rowY[r - 1] + rowHeights[r - 1];
+  }
+
+  const totalRowWidth = colWidths.reduce((a, b) => a + b, 0);
+  const honeycombOffset = totalRowWidth / cols / 2; // half the average column width
+
+  return cellSizes.map((_, i) => {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const offsetX = row % 2 === 1 ? honeycombOffset : 0;
+    return {
+      x: colX[col] + offsetX,
+      y: rowY[row],
+      w: colWidths[col],
+      h: rowHeights[row],
+    };
+  });
+}
+
 function renderTables(state, displayNames) {
   const panel = document.getElementById('tables-panel');
   if (!panel) return;
@@ -275,15 +353,13 @@ function renderTables(state, displayNames) {
     return;
   }
 
-  // Use a fixed logical cell size for honeycomb layout
-  const CELL_W = TABLE_MAX_R * 2 + 32; // diameter + gap
-  const CELL_H = TABLE_MAX_R * 2 + 48;
-
   // We'll lay out in a grid; actual column count computed after render
   // Use a wrapper that we measure after mount
   const grid = document.createElement('div');
   grid.className = 'tables-grid';
   panel.appendChild(grid);
+
+  const cellSizes = [];
 
   // Render each table
   for (const num of tableNums) {
@@ -291,6 +367,7 @@ function renderTables(state, displayNames) {
     const guestCount = getGuestCount(num);
     const r = tableRadius(guestCount);
     const diameter = r * 2;
+    const { w: cellW, h: cellH } = computeCellSize(guestCount);
 
     const { minCapacity, maxCapacity } = state.settings;
     let capacityClass = '';
@@ -302,8 +379,8 @@ function renderTables(state, displayNames) {
 
     const cell = document.createElement('div');
     cell.className = 'table-cell';
-    cell.style.width = `${CELL_W}px`;
-    cell.style.height = `${CELL_H}px`;
+    cell.style.width = `${cellW}px`;
+    cell.style.height = `${cellH}px`;
 
     const circle = document.createElement('div');
     circle.className = `table-circle ${capacityClass}`;
@@ -332,10 +409,11 @@ function renderTables(state, displayNames) {
 
     cell.appendChild(circle);
     grid.appendChild(cell);
+    cellSizes.push({ w: cellW, h: cellH });
   }
 
   // After rendering, apply honeycomb offsets
-  applyHoneycombLayout(grid, CELL_W, CELL_H);
+  applyHoneycombLayout(grid, cellSizes);
 }
 
 /**
@@ -504,42 +582,33 @@ function positionLabel(el, cx, cy) {
 }
 
 /**
- * Apply a honeycomb (brick) offset layout to a grid of fixed-size cells.
- * Even rows (0-indexed) are at normal x; odd rows are offset by half a cell width.
+ * Apply a honeycomb (brick) offset layout to a grid of variable-size cells.
+ * Even rows (0-indexed) are at normal x; odd rows are offset by half the average column width.
+ * Cell dimensions are expanded to the column/row maximum so the table circle stays centered.
  */
-function applyHoneycombLayout(grid, cellW, cellH) {
+function applyHoneycombLayout(grid, cellSizes) {
   const gridWidth = grid.parentElement?.clientWidth ?? 800;
-  const cols = Math.max(1, Math.floor(gridWidth / cellW));
+  const positions = computeHoneycombLayout(cellSizes, gridWidth);
 
   const cells = Array.from(grid.children);
-  const totalCells = cells.length;
-
   let maxBottom = 0;
+  let maxRight = 0;
 
   cells.forEach((cell, i) => {
-    const row = Math.floor(i / cols);
-    const col = i % cols;
-    const offsetX = row % 2 === 1 ? cellW / 2 : 0;
-
-    const x = col * cellW + offsetX;
-    const y = row * cellH;
-
+    const { x, y, w, h } = positions[i];
     cell.style.position = 'absolute';
     cell.style.left = `${x}px`;
     cell.style.top = `${y}px`;
+    cell.style.width = `${w}px`;
+    cell.style.height = `${h}px`;
 
-    maxBottom = Math.max(maxBottom, y + cellH);
+    maxBottom = Math.max(maxBottom, y + h);
+    maxRight = Math.max(maxRight, x + w);
   });
 
   grid.style.position = 'relative';
   grid.style.height = `${maxBottom}px`;
-
-  // Adjust grid width to fit odd-row overflow
-  const maxCols = Math.min(cols, totalCells);
-  const maxRow = Math.ceil(totalCells / cols) - 1;
-  const hasOddRow = maxRow % 2 === 1;
-  const extraWidth = hasOddRow ? cellW / 2 : 0;
-  grid.style.width = `${maxCols * cellW + extraWidth}px`;
+  grid.style.width = `${maxRight}px`;
 }
 
 // ── Drop-zone insertion indicator ─────────────────────────────────────────────
