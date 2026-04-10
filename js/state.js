@@ -245,7 +245,6 @@ export function mergeClusters(clusterId1, clusterId2) {
   const c2 = state.clusters[clusterId2];
   if (!c1 || !c2) return;
 
-  // Merge guestIds into c1, remove c2
   c1.guestIds = [...c1.guestIds, ...c2.guestIds];
   delete state.clusters[clusterId2];
   emit();

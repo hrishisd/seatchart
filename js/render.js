@@ -16,11 +16,14 @@ import {
 
 // Set of selected guest IDs (only standalone unassigned guests)
 const selectedGuestIds = new Set();
+// Set of selected cluster IDs (unassigned clusters)
+const selectedClusterIds = new Set();
 // Last clicked guest ID for shift-click range selection
 let lastClickedGuestId = null;
 
 function clearSelection() {
   selectedGuestIds.clear();
+  selectedClusterIds.clear();
   lastClickedGuestId = null;
 }
 
@@ -69,19 +72,37 @@ function renderUnassigned(state, displayNames) {
   heading.textContent = `Unassigned (${total})`;
   panel.appendChild(heading);
 
-  // "Group selected" button — shown when 2+ guests are selected
-  if (selectedGuestIds.size >= 2) {
+  // Action button — shown when 2+ items selected (standalone guests + clusters each count as 1)
+  const totalSelected = selectedGuestIds.size + selectedClusterIds.size;
+  if (totalSelected >= 2) {
     const groupBtn = document.createElement('button');
     groupBtn.className = 'group-btn';
-    groupBtn.textContent = `Group selected (${selectedGuestIds.size})`;
+    if (selectedClusterIds.size > 0) {
+      const clusterGuestCount = [...selectedClusterIds].reduce(
+        (sum, cid) => sum + (state.clusters[cid]?.guestIds.length ?? 0),
+        0
+      );
+      groupBtn.textContent = `Merge selected (${selectedGuestIds.size + clusterGuestCount} guests)`;
+    } else {
+      groupBtn.textContent = `Group selected (${selectedGuestIds.size})`;
+    }
     groupBtn.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
     });
     groupBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const ids = [...selectedGuestIds];
+      // Collect all guest IDs before dissolving anything
+      const allGuestIds = [...selectedGuestIds];
+      for (const cid of selectedClusterIds) {
+        const cluster = state.clusters[cid];
+        if (cluster) allGuestIds.push(...cluster.guestIds);
+      }
+      // Dissolve selected clusters (state-changed fires per dissolve, that's fine)
+      for (const cid of [...selectedClusterIds]) {
+        dissolveCluster(cid);
+      }
       clearSelection();
-      createCluster(ids);
+      createCluster(allGuestIds);
     });
     panel.appendChild(groupBtn);
   }
@@ -91,6 +112,23 @@ function renderUnassigned(state, displayNames) {
     const wrapper = document.createElement('div');
     wrapper.className = 'cluster-card';
     wrapper.dataset.clusterId = cluster.id;
+
+    // Apply selected state
+    if (selectedClusterIds.has(cluster.id)) {
+      wrapper.classList.add('selected');
+    }
+
+    // Toggle cluster selection on click (ungroup button stops propagation so it's unaffected)
+    wrapper.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (selectedClusterIds.has(cluster.id)) {
+        selectedClusterIds.delete(cluster.id);
+      } else {
+        selectedClusterIds.add(cluster.id);
+      }
+      const s = getState();
+      renderUnassigned(s, buildDisplayNames(s));
+    });
 
     // Apply cluster color to the border
     if (cluster.color) {
