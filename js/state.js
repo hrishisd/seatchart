@@ -285,6 +285,14 @@ export function setTableCount(count) {
   emit();
 }
 
+export function replaceState(newState) {
+  state.settings = newState.settings;
+  state.guests = newState.guests;
+  state.clusters = newState.clusters;
+  state.tables = newState.tables;
+  emit();
+}
+
 // ── seed data ─────────────────────────────────────────────────────────────────
 
 function seedState() {
