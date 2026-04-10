@@ -244,6 +244,14 @@ html, body {
   border-color: var(--accent);
 }
 
+.group-btn-sticky {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-panel);
+  padding: 8px 0 4px;
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.3);
+}
+
 /* ── Guest Card ──────────────────────────────────────────────────────────── */
 
 .guest-card {

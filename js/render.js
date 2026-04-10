@@ -72,41 +72,6 @@ function renderUnassigned(state, displayNames) {
   heading.textContent = `Unassigned (${total})`;
   panel.appendChild(heading);
 
-  // Action button — shown when 2+ items selected (standalone guests + clusters each count as 1)
-  const totalSelected = selectedGuestIds.size + selectedClusterIds.size;
-  if (totalSelected >= 2) {
-    const groupBtn = document.createElement('button');
-    groupBtn.className = 'group-btn';
-    if (selectedClusterIds.size > 0) {
-      const clusterGuestCount = [...selectedClusterIds].reduce(
-        (sum, cid) => sum + (state.clusters[cid]?.guestIds.length ?? 0),
-        0
-      );
-      groupBtn.textContent = `Merge selected (${selectedGuestIds.size + clusterGuestCount} guests)`;
-    } else {
-      groupBtn.textContent = `Group selected (${selectedGuestIds.size})`;
-    }
-    groupBtn.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-    });
-    groupBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      // Collect all guest IDs before dissolving anything
-      const allGuestIds = [...selectedGuestIds];
-      for (const cid of selectedClusterIds) {
-        const cluster = state.clusters[cid];
-        if (cluster) allGuestIds.push(...cluster.guestIds);
-      }
-      // Dissolve selected clusters (state-changed fires per dissolve, that's fine)
-      for (const cid of [...selectedClusterIds]) {
-        dissolveCluster(cid);
-      }
-      clearSelection();
-      createCluster(allGuestIds);
-    });
-    panel.appendChild(groupBtn);
-  }
-
   // Render unassigned clusters
   for (const cluster of unassignedClusters) {
     const wrapper = document.createElement('div');
@@ -189,6 +154,43 @@ function renderUnassigned(state, displayNames) {
       handleGuestCardClick(e, g.id, unassignedGuests);
     });
     panel.appendChild(card);
+  }
+
+  // Sticky action button at the bottom — shown when 2+ items selected
+  const totalSelected = selectedGuestIds.size + selectedClusterIds.size;
+  if (totalSelected >= 2) {
+    const stickyContainer = document.createElement('div');
+    stickyContainer.className = 'group-btn-sticky';
+
+    const groupBtn = document.createElement('button');
+    groupBtn.className = 'group-btn';
+    if (selectedClusterIds.size > 0) {
+      const clusterGuestCount = [...selectedClusterIds].reduce(
+        (sum, cid) => sum + (state.clusters[cid]?.guestIds.length ?? 0),
+        0
+      );
+      groupBtn.textContent = `Merge selected (${selectedGuestIds.size + clusterGuestCount} guests)`;
+    } else {
+      groupBtn.textContent = `Group selected (${selectedGuestIds.size})`;
+    }
+    groupBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+    });
+    groupBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const allGuestIds = [...selectedGuestIds];
+      for (const cid of selectedClusterIds) {
+        const cluster = state.clusters[cid];
+        if (cluster) allGuestIds.push(...cluster.guestIds);
+      }
+      for (const cid of [...selectedClusterIds]) {
+        dissolveCluster(cid);
+      }
+      clearSelection();
+      createCluster(allGuestIds);
+    });
+    stickyContainer.appendChild(groupBtn);
+    panel.appendChild(stickyContainer);
   }
 
   if (unassignedGuests.length === 0 && unassignedClusters.length === 0) {
