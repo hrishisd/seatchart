@@ -1,4 +1,4 @@
- Seatchart
+ # Seatchart
 
 Interactive web-based seating chart tool for events. Drag-and-drop guests onto tables, group guests into clusters, and import/export via CSV.
 
