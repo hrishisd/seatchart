@@ -8,7 +8,6 @@ import {
   getUnassignedClusters,
   getGuestCount,
   addGuest,
-  removeGuest,
   setTableCount,
   setMinCapacity,
   setMaxCapacity,
@@ -61,14 +60,6 @@ export function initToolbar() {
   addGuestBtn.addEventListener('click', doAddGuest);
   addGuestInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') doAddGuest();
-  });
-
-  // Delete guest on right-click (contextmenu) — works on cards anywhere in the app
-  document.addEventListener('contextmenu', (e) => {
-    const el = e.target.closest('[data-guest-id]');
-    if (!el) return;
-    e.preventDefault();
-    removeGuest(el.dataset.guestId);
   });
 
   // Status display

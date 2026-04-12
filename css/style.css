@@ -269,6 +269,34 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.guest-delete-btn {
+  display: none;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0 2px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.1s, background 0.1s;
+}
+
+.guest-delete-btn:hover {
+  color: var(--warn-over-max);
+  background: rgba(255, 77, 77, 0.12);
+}
+
+.guest-card:hover .guest-delete-btn,
+.seat-label:hover .guest-delete-btn {
+  display: inline-block;
 }
 
 .guest-card:hover {
@@ -465,6 +493,9 @@ html, body {
   touch-action: none;
   transition: background 0.12s, border-color 0.12s;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .seat-label:hover {

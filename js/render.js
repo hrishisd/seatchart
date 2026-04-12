@@ -10,6 +10,7 @@ import {
   getGuestCount,
   createCluster,
   dissolveCluster,
+  removeGuest,
 } from './state.js';
 
 // ── Selection state ───────────────────────────────────────────────────────────
@@ -235,13 +236,29 @@ function handleGuestCardClick(e, guestId, unassignedGuests) {
   renderUnassigned(state, displayNames);
 }
 
+function makeDeleteBtn(guestId) {
+  const btn = document.createElement('button');
+  btn.className = 'guest-delete-btn';
+  btn.textContent = '×';
+  btn.title = 'Remove guest';
+  btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    removeGuest(guestId);
+  });
+  return btn;
+}
+
 function makeGuestCard(guest, displayNames, context) {
   const card = document.createElement('div');
   card.className = 'guest-card';
   card.dataset.guestId = guest.id;
   card.dataset.context = context;
   card.title = fullName(guest);
-  card.textContent = displayNames[guest.id] ?? guest.firstName;
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = displayNames[guest.id] ?? guest.firstName;
+  card.appendChild(nameSpan);
+  card.appendChild(makeDeleteBtn(guest.id));
   return card;
 }
 
@@ -568,7 +585,10 @@ function makeSeatLabel(guest, displayNames, context, _r, _seatIdx, _total) {
   label.dataset.guestId = guest.id;
   label.dataset.context = context;
   label.title = fullName(guest);
-  label.textContent = displayNames[guest.id] ?? guest.firstName;
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = displayNames[guest.id] ?? guest.firstName;
+  label.appendChild(nameSpan);
+  label.appendChild(makeDeleteBtn(guest.id));
   return label;
 }
 
