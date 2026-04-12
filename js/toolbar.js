@@ -69,12 +69,21 @@ export function initToolbar() {
 
 function updateStatus() {
   const statusEl = document.getElementById('toolbar-status');
-  if (!statusEl) return;
+  const indicatorEl = document.getElementById('guest-count-indicator');
 
   const state = getState();
+  const totalGuests = Object.keys(state.guests).length;
   const unassignedCount =
     getUnassignedGuests().length +
     getUnassignedClusters().reduce((sum, c) => sum + c.guestIds.length, 0);
+
+  if (indicatorEl) {
+    indicatorEl.textContent = `${unassignedCount} / ${totalGuests} unassigned`;
+    indicatorEl.className =
+      'guest-count-indicator' + (unassignedCount === 0 ? ' all-assigned' : '');
+  }
+
+  if (!statusEl) return;
 
   const { maxCapacity } = state.settings;
   let overCount = 0;
@@ -85,7 +94,6 @@ function updateStatus() {
   }
 
   const parts = [];
-  if (unassignedCount > 0) parts.push(`${unassignedCount} unassigned`);
   if (overCount > 0) parts.push(`${overCount} over capacity`);
   statusEl.textContent = parts.join(' · ');
   statusEl.className = 'toolbar-status' + (overCount > 0 ? ' has-warnings' : '');

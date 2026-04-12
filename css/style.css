@@ -169,8 +169,26 @@ html, body {
   background: var(--accent);
 }
 
-.toolbar-status {
+.guest-count-indicator {
   margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.guest-count-indicator.all-assigned {
+  color: #4e9e52;
+  border-color: #4e9e52;
+  background: rgba(78, 158, 82, 0.1);
+}
+
+.toolbar-status {
   font-size: 12px;
   color: var(--text-secondary);
   white-space: nowrap;
