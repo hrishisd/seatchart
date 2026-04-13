@@ -317,6 +317,33 @@ html, body {
   display: inline-block;
 }
 
+.delete-confirm-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  margin-right: 2px;
+}
+
+.delete-confirm-yes,
+.delete-confirm-no {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.delete-confirm-yes {
+  background: var(--warn-over-max);
+  color: #fff;
+}
+
+.delete-confirm-no {
+  background: var(--bg-card-hover);
+  color: var(--text-secondary);
+}
+
 .guest-card:hover {
   background: var(--bg-card-hover);
   border-color: var(--accent-dim);

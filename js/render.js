@@ -239,13 +239,71 @@ function handleGuestCardClick(e, guestId, unassignedGuests) {
 function makeDeleteBtn(guestId) {
   const btn = document.createElement('button');
   btn.className = 'guest-delete-btn';
-  btn.textContent = '×';
-  btn.title = 'Remove guest';
+
+  function showNormal() {
+    btn.textContent = '×';
+    btn.title = 'Remove guest';
+    btn.style.display = '';
+    btn.style.alignItems = '';
+    btn.style.gap = '';
+  }
+
+  function showConfirm() {
+    btn.textContent = '';
+    btn.title = '';
+    btn.style.display = 'inline-flex';
+    btn.style.alignItems = 'center';
+    btn.style.gap = '3px';
+
+    const label = document.createElement('span');
+    label.className = 'delete-confirm-label';
+    label.textContent = 'Delete?';
+
+    const yes = document.createElement('button');
+    yes.className = 'delete-confirm-yes';
+    yes.textContent = 'Yes';
+
+    const no = document.createElement('button');
+    no.className = 'delete-confirm-no';
+    no.textContent = 'No';
+
+    for (const el of [yes, no]) {
+      el.addEventListener('pointerdown', (e) => e.stopPropagation());
+    }
+
+    yes.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.removeEventListener('click', outsideClick);
+      removeGuest(guestId);
+    });
+
+    no.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.removeEventListener('click', outsideClick);
+      showNormal();
+    });
+
+    btn.appendChild(label);
+    btn.appendChild(yes);
+    btn.appendChild(no);
+
+    function outsideClick(e) {
+      if (!btn.contains(e.target)) {
+        document.removeEventListener('click', outsideClick);
+        showNormal();
+      }
+    }
+    setTimeout(() => document.addEventListener('click', outsideClick), 0);
+  }
+
+  showNormal();
+
   btn.addEventListener('pointerdown', (e) => e.stopPropagation());
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    removeGuest(guestId);
+    showConfirm();
   });
+
   return btn;
 }
 
