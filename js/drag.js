@@ -121,6 +121,16 @@ function createClusterGhost(clusterId, x, y) {
 }
 
 /**
+ * Returns true if the pointer has moved far enough from the start point
+ * to count as an intentional drag.
+ *
+ * Exported for testing.
+ */
+export function hasExceededDragThreshold(startX, startY, currentX, currentY, threshold = 5) {
+  return Math.hypot(currentX - startX, currentY - startY) >= threshold;
+}
+
+/**
  * Hit-test elements under (x, y) ignoring the ghost.
  * Returns { tableEl, tableNum, unassignedEl, mergeClusterEl, mergeClusterId }.
  *
@@ -317,22 +327,11 @@ function onPointerDown(e) {
 
   e.preventDefault();
 
-  // For a cluster dragged from a table, use a cluster-card ghost and dim all members.
-  // For everything else, clone the source element.
-  let ghost;
-  const isDraggingClusterFromTable = itemType === 'cluster' && fromTable !== null;
-  if (isDraggingClusterFromTable) {
-    ghost = createClusterGhost(itemId, e.clientX, e.clientY);
-    // Dim all cluster member seat labels in that table
-    const tableCircle = sourceEl.closest('.table-circle[data-table]');
-    if (tableCircle) {
-      tableCircle.querySelectorAll(`.seat-label[data-cluster-id="${itemId}"]`).forEach((el) => {
-        el.classList.add('drag-source-dimmed');
-      });
-    }
-  } else {
-    ghost = createGhost(sourceEl, e.clientX, e.clientY);
-    sourceEl.classList.add('drag-source-dimmed');
+  // Determine clusterId for cluster-member drags
+  let clusterIdForMember = null;
+  if (itemType === 'cluster-member') {
+    const parentClusterCard = sourceEl.closest('.cluster-card[data-cluster-id]');
+    if (parentClusterCard) clusterIdForMember = parentClusterCard.dataset.clusterId;
   }
 
   // Capture pointer on the source element so we keep receiving events
@@ -343,21 +342,19 @@ function onPointerDown(e) {
     // Some browsers may not support this on all element types
   }
 
-  // Determine clusterId for cluster-member drags
-  let clusterIdForMember = null;
-  if (itemType === 'cluster-member') {
-    const parentClusterCard = sourceEl.closest('.cluster-card[data-cluster-id]');
-    if (parentClusterCard) clusterIdForMember = parentClusterCard.dataset.clusterId;
-  }
-
+  // Phase 1: store pending drag metadata only — no ghost or dimming yet.
+  // The drag activates in onPointerMove once the threshold is exceeded.
   drag = {
     itemId,
     itemType,
     fromTable,
     clusterId: clusterIdForMember,
     sourceEl,
-    ghostEl: ghost,
+    ghostEl: null,
     pointerId: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    activated: false,
     currentTable: null,
     insertionIdx: 0,
     mergeTargetId: null,
@@ -368,6 +365,45 @@ function onPointerDown(e) {
   sourceEl.addEventListener('pointermove', onPointerMove);
   sourceEl.addEventListener('pointerup', onPointerUp);
   sourceEl.addEventListener('pointercancel', onPointerCancel);
+}
+
+/**
+ * Transition from pending → active drag: create ghost, dim source, and
+ * seed insertion indices to the item's current position so a click-without-
+ * movement never reorders anything.
+ */
+function activateDrag(x, y) {
+  const isDraggingClusterFromTable = drag.itemType === 'cluster' && drag.fromTable !== null;
+  let ghost;
+  if (isDraggingClusterFromTable) {
+    ghost = createClusterGhost(drag.itemId, x, y);
+    const tableCircle = drag.sourceEl.closest('.table-circle[data-table]');
+    if (tableCircle) {
+      tableCircle.querySelectorAll(`.seat-label[data-cluster-id="${drag.itemId}"]`).forEach((el) => {
+        el.classList.add('drag-source-dimmed');
+      });
+    }
+  } else {
+    ghost = createGhost(drag.sourceEl, x, y);
+    drag.sourceEl.classList.add('drag-source-dimmed');
+  }
+  drag.ghostEl = ghost;
+
+  // Seed indices from current position so a near-stationary release is a no-op
+  const state = getState();
+  if (drag.itemType === 'cluster-member' && drag.clusterId) {
+    const cluster = state.clusters[drag.clusterId];
+    if (cluster) {
+      const idx = cluster.guestIds.indexOf(drag.itemId);
+      drag.clusterInsertIdx = idx >= 0 ? idx : 0;
+    }
+  } else if (drag.fromTable !== null) {
+    const seats = state.tables[drag.fromTable]?.seats ?? [];
+    const idx = seats.indexOf(drag.itemId);
+    drag.insertionIdx = idx >= 0 ? idx : 0;
+  }
+
+  drag.activated = true;
 }
 
 /**
@@ -429,6 +465,12 @@ function clearClusterInsertLine() {
 function onPointerMove(e) {
   if (!drag) return;
   e.preventDefault();
+
+  // Phase 2: activate only after the pointer has moved far enough
+  if (!drag.activated) {
+    if (!hasExceededDragThreshold(drag.startX, drag.startY, e.clientX, e.clientY, 5)) return;
+    activateDrag(e.clientX, e.clientY);
+  }
 
   moveGhost(drag.ghostEl, e.clientX, e.clientY);
 
@@ -512,6 +554,9 @@ function onPointerCancel(e) {
 }
 
 function finalizeDrop(x, y) {
+  // If the pointer never moved past the threshold, treat as a plain click — no-op.
+  if (!drag.activated) return;
+
   // Handle cluster-member reorder
   if (drag.itemType === 'cluster-member') {
     // Check if still within the same cluster card
@@ -567,8 +612,8 @@ function finalizeDrop(x, y) {
 function cleanupDrag() {
   if (!drag) return;
 
-  // Remove ghost
-  drag.ghostEl.remove();
+  // Remove ghost (may be null if drag was never activated)
+  drag.ghostEl?.remove();
 
   // Restore any dimmed elements (may be multiple for cluster-from-table drags)
   document.querySelectorAll('.drag-source-dimmed').forEach((el) => {

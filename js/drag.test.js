@@ -6,6 +6,11 @@
  * so we duplicate the pure functions here.
  */
 
+// ── Copy of hasExceededDragThreshold from drag.js ────────────────────────────
+function hasExceededDragThreshold(startX, startY, currentX, currentY, threshold = 5) {
+  return Math.hypot(currentX - startX, currentY - startY) >= threshold;
+}
+
 // ── Copy of insertionIndexFromAngle from drag.js ─────────────────────────────
 function insertionIndexFromAngle(cursorAngleDeg, seatCount) {
   if (seatCount === 0) return 0;
@@ -118,9 +123,34 @@ function assertApprox(actual, expected, message, tolerance = 0.01) {
   }
 }
 
+// ── hasExceededDragThreshold ─────────────────────────────────────────────────
+
+console.log('hasExceededDragThreshold:');
+
+// No movement — never triggers
+assertEqual(hasExceededDragThreshold(0, 0, 0, 0), false, 'no movement');
+
+// Movement below threshold
+assertEqual(hasExceededDragThreshold(0, 0, 4, 0), false, '4px horizontal < 5px');
+assertEqual(hasExceededDragThreshold(0, 0, 0, 4), false, '4px vertical < 5px');
+assertEqual(hasExceededDragThreshold(0, 0, 3, 3), false, '~4.24px diagonal < 5px');
+
+// Exactly at threshold (>= so should be true)
+assertEqual(hasExceededDragThreshold(0, 0, 5, 0), true, 'exactly 5px horizontal');
+assertEqual(hasExceededDragThreshold(0, 0, 0, 5), true, 'exactly 5px vertical');
+assertEqual(hasExceededDragThreshold(10, 10, 13, 14), true, '3-4-5 triangle: exactly 5px');
+
+// Movement above threshold
+assertEqual(hasExceededDragThreshold(0, 0, 6, 0), true, '6px horizontal > 5px');
+assertEqual(hasExceededDragThreshold(100, 200, 105, 205), true, 'moved ~7.07px diagonally');
+
+// Custom threshold
+assertEqual(hasExceededDragThreshold(0, 0, 4, 0, 3), true, '4px > custom threshold 3');
+assertEqual(hasExceededDragThreshold(0, 0, 2, 0, 3), false, '2px < custom threshold 3');
+
 // ── insertionIndexFromAngle ──────────────────────────────────────────────────
 
-console.log('insertionIndexFromAngle:');
+console.log('\ninsertionIndexFromAngle:');
 
 // 0 seats: always 0
 assertEqual(insertionIndexFromAngle(0, 0), 0, '0 seats, 0°');
